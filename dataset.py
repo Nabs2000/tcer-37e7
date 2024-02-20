@@ -40,6 +40,8 @@ class Dataset_geno(torch.utils.data.Dataset):
         self.for_val = for_val
         # self.dataall = loadmat(image_path)
 
+        # If in training mode, and the shape of GenoMaps we want to test if the last dim is empty, set the total data to be the current train data
+        # Otherwise, concatenate the training and testing genoMap data along the last dim
         if self.training:
             if loadmat(image_path)['test_genoMaps'].shape[-1] == 0:
             # if 'test_genoMaps' not in loadmat(image_path).keys():
@@ -72,6 +74,7 @@ class Dataset_geno(torch.utils.data.Dataset):
                         self.dataall = np.concatenate([loadmat(image_path)['train_genoMaps'], loadmat(image_path)['test_genoMaps']], axis=-1)
                         self.gtdataall = np.concatenate([loadmat(image_path)['train_genoMaps_GT'], loadmat(image_path)['test_genoMaps_GT']], axis=-1)
 
+            # Keep all the data greater than 0
             self.maskall = (self.dataall > self.lowerb) * 1.0
 
             # if self.use_ln:
