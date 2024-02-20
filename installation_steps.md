@@ -1,8 +1,8 @@
-## Setting up Conda Environment
+## Setting up Conda Environment for Linux OS
 1. Install Conda (https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html)
 2. Create Conda environment -> `conda create -n <name> python=3.7`
 3. Install PyTorch 1.6.0 and Cuda 10.1 (https://pytorch.org/get-started/previous-versions/)
-4. Create requirements.txt file and add libraries from README.md
+4. Create `requirements.txt` file and add libraries from README.md (if missing)
 
 ## Troubleshooting
 
