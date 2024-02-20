@@ -142,50 +142,6 @@ def train(net, loader_train, loader_test, optim, criterion, target_size, ori_siz
 			print(f'at step :{step}| epoch: {epoch} | Best_pearson_mean:{max_pearson_coe:.4f} | pearson std:{max_pearson_coe_std:.4f}')
 			print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
 
-def test(net,loader_test, target_size, ori_size):
-	net.eval()
-	# torch.cuda.empty_cache()
-	GT_ALL = []
-	MASKED_ALL = []
-	FAKE_PRED_ALL = []
-
-	for i, (inputs, masks, targets, _) in enumerate(loader_test):
-
-		GT_ALL.append(targets)
-
-		MASKED_ALL.append(inputs)
-		inputs = inputs.to(opt.device)
-
-		with torch.no_grad():
-			pred = net(inputs)
-			FAKE_PRED_ALL.append(pred.cpu())
-
-	MASKED_ALL = torch.cat(MASKED_ALL, dim=0)
-	GT_ALL = torch.cat(GT_ALL, dim=0)
-	FAKE_PRED_ALL = torch.cat(FAKE_PRED_ALL, dim=0)
-	if target_size > ori_size:
-		cut_ind = (target_size - ori_size) // 2
-		GT = GT_ALL[:, 0, cut_ind:cut_ind + ori_size, cut_ind:cut_ind + ori_size].contiguous().view(-1, ori_size * ori_size)
-		F = FAKE_PRED_ALL[:, 0, cut_ind:cut_ind + ori_size, cut_ind:cut_ind + ori_size].contiguous().view(-1, ori_size * ori_size)
-		MASKED = MASKED_ALL[:, 0, cut_ind:cut_ind + ori_size, cut_ind:cut_ind + ori_size].contiguous().view(-1, ori_size * ori_size)
-	else:
-		GT = GT_ALL.view(-1, target_size * target_size)
-		F = FAKE_PRED_ALL.view(-1, target_size * target_size)
-		MASKED = MASKED_ALL.view(-1, target_size * target_size)
-	PEARSON_COE = []
-
-	for t in range(MASKED.shape[-1]):
-		gt = GT[:, t]
-		f_p = F[:, t]
-		pear_co_f, p_f = pearsonr(f_p, gt)
-		PEARSON_COE.append(pear_co_f)
-
-
-	PEARSON_COE = np.array(PEARSON_COE)
-
-	return PEARSON_COE.mean(), PEARSON_COE.std()
-
-
 def set_seed_torch(seed=2022):
 	os.environ['PYTHONHASHSEED'] = str(seed)
 	np.random.seed(seed)
@@ -195,23 +151,26 @@ def set_seed_torch(seed=2022):
 	torch.backends.cudnn.deterministic = True
 
 if __name__ == "__main__":
-
+    # Set random seed and begin time
 	set_seed_torch(666)
 	start_time = time.time()
 
-
+    # Set device and model name
 	opt.device = 'cuda:0'
 	opt.model_name = opt.dataset + '_' + opt.rate +'_GMImpute'
 
 	model_name = opt.model_name
 
+    # Create a logging directory if one doesn't exist to contain log file
 	log_dir = 'logs_train/' + opt.model_name
 	if not os.path.exists(log_dir):
 		os.mkdir(log_dir)
 
+    # Capture the root directory of the dataset
 	opt.data_root = './data/' + opt.dataset + '_' + 'dataSAVER' + opt.rate + '.mat'
 	opt.eval_data_root = './data/' + opt.dataset + '_' + 'dataSAVER' + opt.rate + '.mat'
 
+    # Set target size to be 52 and orig size to be 49, based on hard-coded values above when IMGSIZE was declared
 	opt.target_size = IMGSIZE[opt.dataset][1]
 	opt.ori_size = IMGSIZE[opt.dataset][0]
 	opt.ema_decay = 0.99
@@ -227,10 +186,12 @@ if __name__ == "__main__":
 	if not opt.resume and os.path.exists(f'./logs_train/{opt.model_name}.txt'):
 		print(f'./logs_train/{opt.model_name}.txt 已存在，请删除该文件……')
 		# exit()
-
+    
+    # Dump parameters into log file
 	with open(f'./logs_train/args_{opt.model_name}.txt', 'w') as f:
 		json.dump(opt.__dict__, f, indent=2)
 
+    # Create dataloaders, or objects that process the data and concacenate training and testing datasets
 	dataloader = DataLoader(Dataset_geno(opt.data_root, opt.target_size, opt.ori_size,  dataset='genoMap', mask_reverse=True, creat_mask=True,  reverse=True, assi=0.999, lowerb=0., ratio=opt.Hratio, Lratio=opt.Lratio), batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_threads)
 
 	eval_dataloader = DataLoader(Dataset_geno(opt.eval_data_root, opt.target_size, opt.ori_size, dataset='genoMap', mask_reverse=True,  training=False, creat_mask=False, reverse=True, assi=0.999, lowerb=0., ratio=opt.Hratio, Lratio=opt.Lratio), batch_size=opt.batch_size, shuffle=False, num_workers=opt.n_threads)
